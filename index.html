@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Assignment 3 | Vega-Lite Sales Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+    <style>
+      :root {
+        --paper: #f5efe4;
+        --panel: rgba(255, 252, 247, 0.8);
+        --ink: #1d2b28;
+        --muted: #516461;
+        --accent: #c65d3b;
+        --accent-soft: rgba(198, 93, 59, 0.16);
+        --line: rgba(29, 43, 40, 0.12);
+        --shadow: 0 28px 70px rgba(39, 31, 24, 0.16);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Space Grotesk", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(198, 93, 59, 0.18), transparent 28%),
+          radial-gradient(circle at bottom right, rgba(55, 95, 84, 0.18), transparent 26%),
+          linear-gradient(160deg, #efe6d5 0%, #f8f4ec 38%, #e5efe8 100%);
+      }
+
+      .page {
+        width: min(1180px, calc(100vw - 32px));
+        margin: 24px auto;
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        border-radius: 28px;
+        background: var(--panel);
+        backdrop-filter: blur(14px);
+        box-shadow: var(--shadow);
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        font-size: 0.88rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 12ch;
+        font-size: clamp(2.25rem, 4vw, 4.6rem);
+        line-height: 0.95;
+      }
+
+      .lede {
+        max-width: 62ch;
+        margin: 18px 0 0;
+        color: var(--muted);
+        font-size: 1rem;
+        line-height: 1.65;
+      }
+
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin: 26px 0 30px;
+      }
+
+      .meta-card {
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.55);
+        border: 1px solid var(--line);
+      }
+
+      .meta-card span {
+        display: block;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .meta-card strong {
+        display: block;
+        margin-top: 6px;
+        font-size: 1.02rem;
+      }
+
+      #vis {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .chart-card {
+        border-radius: 22px;
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.56);
+        border: 1px solid var(--line);
+        min-height: 260px;
+      }
+
+      .chart-host {
+        min-height: 220px;
+      }
+
+      .status {
+        margin: 0 0 12px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: rgba(198, 93, 59, 0.1);
+        border: 1px solid rgba(198, 93, 59, 0.2);
+        color: #7f341f;
+        font-size: 0.94rem;
+        line-height: 1.5;
+      }
+
+      .status[hidden] {
+        display: none;
+      }
+
+      .footnote {
+        margin: 18px 0 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.6;
+      }
+
+      @media (max-width: 900px) {
+        .page {
+          width: min(100vw - 20px, 1180px);
+          margin: 10px auto;
+          padding: 18px;
+          border-radius: 22px;
+        }
+
+        .meta {
+          grid-template-columns: 1fr;
+        }
+
+        #vis {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <p class="eyebrow">Vega-Lite Assignment 3</p>
+      <h1>Visualizing Office Supply Sales</h1>
+      <p class="lede">
+        This multiview dashboard uses the <strong>SalesOrders</strong> data from
+        <strong>HW_III.xlsx</strong> to compare sales reps, track product revenue over time,
+        inspect the distribution of unit counts, and explore how regional performance and
+        order-level sales vary across the catalog.
+      </p>
+
+      <section class="meta" aria-label="Dataset summary">
+        <div class="meta-card">
+          <span>Time span</span>
+          <strong>January 2021 to December 2022</strong>
+        </div>
+        <div class="meta-card">
+          <span>Orders</span>
+          <strong>43 sales records</strong>
+        </div>
+        <div class="meta-card">
+          <span>Interactions</span>
+          <strong>Region click filter and scatter brush</strong>
+        </div>
+      </section>
+
+      <p id="status" class="status" hidden></p>
+      <section id="vis" aria-label="Vega-Lite dashboard">
+        <article class="chart-card">
+          <div id="chart-donut" class="chart-host"></div>
+        </article>
+        <article class="chart-card">
+          <div id="chart-region" class="chart-host"></div>
+        </article>
+        <article class="chart-card">
+          <div id="chart-stream" class="chart-host"></div>
+        </article>
+        <article class="chart-card">
+          <div id="chart-trellis" class="chart-host"></div>
+        </article>
+        <article class="chart-card">
+          <div id="chart-scatter" class="chart-host"></div>
+        </article>
+        <article class="chart-card">
+          <div id="chart-multiview" class="chart-host"></div>
+        </article>
+      </section>
+      <p class="footnote">
+        Required views: donut chart, streamgraph, trellis histogram with mean overlay. Extra
+        views: interactive regional ranking and interactive order scatter plot.
+      </p>
+    </main>
+
+    <script>
+      const salesOrders = [
+        {"OrderDate":"2021-01-06","Region":"East","Rep":"Jones","Item":"Pencil","Units":95,"UnitCost":1.99,"Total":189.05},
+        {"OrderDate":"2021-01-23","Region":"Central","Rep":"Kivell","Item":"Binder","Units":50,"UnitCost":19.99,"Total":999.5},
+        {"OrderDate":"2021-02-09","Region":"Central","Rep":"Jardine","Item":"Pencil","Units":36,"UnitCost":4.99,"Total":179.64},
+        {"OrderDate":"2021-02-26","Region":"Central","Rep":"Gill","Item":"Pen","Units":27,"UnitCost":19.99,"Total":539.73},
+        {"OrderDate":"2021-03-15","Region":"West","Rep":"Sorvino","Item":"Pencil","Units":56,"UnitCost":2.99,"Total":167.44},
+        {"OrderDate":"2021-04-01","Region":"East","Rep":"Jones","Item":"Binder","Units":60,"UnitCost":4.99,"Total":299.4},
+        {"OrderDate":"2021-04-18","Region":"Central","Rep":"Andrews","Item":"Pencil","Units":75,"UnitCost":1.99,"Total":149.25},
+        {"OrderDate":"2021-05-05","Region":"Central","Rep":"Jardine","Item":"Pencil","Units":90,"UnitCost":4.99,"Total":449.1},
+        {"OrderDate":"2021-05-22","Region":"West","Rep":"Thompson","Item":"Pencil","Units":32,"UnitCost":1.99,"Total":63.68},
+        {"OrderDate":"2021-06-08","Region":"East","Rep":"Jones","Item":"Binder","Units":60,"UnitCost":8.99,"Total":539.4},
+        {"OrderDate":"2021-06-25","Region":"Central","Rep":"Morgan","Item":"Pencil","Units":90,"UnitCost":4.99,"Total":449.1},
+        {"OrderDate":"2021-07-12","Region":"East","Rep":"Howard","Item":"Binder","Units":29,"UnitCost":1.99,"Total":57.71},
+        {"OrderDate":"2021-07-29","Region":"East","Rep":"Parent","Item":"Binder","Units":81,"UnitCost":19.99,"Total":1619.19},
+        {"OrderDate":"2021-08-15","Region":"East","Rep":"Jones","Item":"Pencil","Units":35,"UnitCost":4.99,"Total":174.65},
+        {"OrderDate":"2021-09-01","Region":"Central","Rep":"Smith","Item":"Desk","Units":2,"UnitCost":125,"Total":250},
+        {"OrderDate":"2021-09-18","Region":"East","Rep":"Jones","Item":"Pen Set","Units":16,"UnitCost":15.99,"Total":255.84},
+        {"OrderDate":"2021-10-05","Region":"Central","Rep":"Morgan","Item":"Binder","Units":28,"UnitCost":8.99,"Total":251.72},
+        {"OrderDate":"2021-10-22","Region":"East","Rep":"Jones","Item":"Pen","Units":64,"UnitCost":8.99,"Total":575.36},
+        {"OrderDate":"2021-11-08","Region":"East","Rep":"Parent","Item":"Pen","Units":15,"UnitCost":19.99,"Total":299.85},
+        {"OrderDate":"2021-11-25","Region":"Central","Rep":"Kivell","Item":"Pen Set","Units":96,"UnitCost":4.99,"Total":479.04},
+        {"OrderDate":"2021-12-12","Region":"Central","Rep":"Smith","Item":"Pencil","Units":67,"UnitCost":1.29,"Total":86.43},
+        {"OrderDate":"2021-12-29","Region":"East","Rep":"Parent","Item":"Pen Set","Units":74,"UnitCost":15.99,"Total":1183.26},
+        {"OrderDate":"2022-01-15","Region":"Central","Rep":"Gill","Item":"Binder","Units":46,"UnitCost":8.99,"Total":413.54},
+        {"OrderDate":"2022-02-01","Region":"Central","Rep":"Smith","Item":"Binder","Units":87,"UnitCost":15,"Total":1305},
+        {"OrderDate":"2022-02-18","Region":"East","Rep":"Jones","Item":"Binder","Units":4,"UnitCost":4.99,"Total":19.96},
+        {"OrderDate":"2022-03-07","Region":"West","Rep":"Sorvino","Item":"Binder","Units":7,"UnitCost":19.99,"Total":139.93},
+        {"OrderDate":"2022-03-24","Region":"Central","Rep":"Jardine","Item":"Pen Set","Units":50,"UnitCost":4.99,"Total":249.5},
+        {"OrderDate":"2022-04-10","Region":"Central","Rep":"Andrews","Item":"Pencil","Units":66,"UnitCost":1.99,"Total":131.34},
+        {"OrderDate":"2022-04-27","Region":"East","Rep":"Howard","Item":"Pen","Units":96,"UnitCost":4.99,"Total":479.04},
+        {"OrderDate":"2022-05-14","Region":"Central","Rep":"Gill","Item":"Pencil","Units":53,"UnitCost":1.29,"Total":68.37},
+        {"OrderDate":"2022-05-31","Region":"Central","Rep":"Gill","Item":"Binder","Units":80,"UnitCost":8.99,"Total":719.2},
+        {"OrderDate":"2022-06-17","Region":"Central","Rep":"Kivell","Item":"Desk","Units":5,"UnitCost":125,"Total":625},
+        {"OrderDate":"2022-07-04","Region":"East","Rep":"Jones","Item":"Pen Set","Units":62,"UnitCost":4.99,"Total":309.38},
+        {"OrderDate":"2022-07-21","Region":"Central","Rep":"Morgan","Item":"Pen Set","Units":55,"UnitCost":12.49,"Total":686.95},
+        {"OrderDate":"2022-08-07","Region":"Central","Rep":"Kivell","Item":"Pen Set","Units":42,"UnitCost":23.95,"Total":1005.9},
+        {"OrderDate":"2022-08-24","Region":"West","Rep":"Sorvino","Item":"Desk","Units":3,"UnitCost":275,"Total":825},
+        {"OrderDate":"2022-09-10","Region":"Central","Rep":"Gill","Item":"Pencil","Units":7,"UnitCost":1.29,"Total":9.03},
+        {"OrderDate":"2022-09-27","Region":"West","Rep":"Sorvino","Item":"Pen","Units":76,"UnitCost":1.99,"Total":151.24},
+        {"OrderDate":"2022-10-14","Region":"West","Rep":"Thompson","Item":"Binder","Units":57,"UnitCost":19.99,"Total":1139.43},
+        {"OrderDate":"2022-10-31","Region":"Central","Rep":"Andrews","Item":"Pencil","Units":14,"UnitCost":1.29,"Total":18.06},
+        {"OrderDate":"2022-11-17","Region":"Central","Rep":"Jardine","Item":"Binder","Units":11,"UnitCost":4.99,"Total":54.89},
+        {"OrderDate":"2022-12-04","Region":"Central","Rep":"Jardine","Item":"Binder","Units":94,"UnitCost":19.99,"Total":1879.06},
+        {"OrderDate":"2022-12-21","Region":"Central","Rep":"Andrews","Item":"Binder","Units":28,"UnitCost":4.99,"Total":139.72}
+      ];
+
+      const commonConfig = {
+        background: null,
+        padding: 10,
+        config: {
+          style: {
+            "guide-label": {
+              font: "Space Grotesk",
+              fontSize: 12,
+              fill: "#314542"
+            },
+            "guide-title": {
+              font: "Space Grotesk",
+              fontSize: 13,
+              fontWeight: 700,
+              fill: "#1d2b28"
+            },
+            "group-title": {
+              font: "Space Grotesk",
+              fontSize: 16,
+              fontWeight: 700,
+              fill: "#1d2b28"
+            }
+          },
+          view: { stroke: "rgba(29, 43, 40, 0.08)", cornerRadius: 16 },
+          axis: {
+            labelColor: "#314542",
+            titleColor: "#1d2b28",
+            gridColor: "rgba(29, 43, 40, 0.08)",
+            tickColor: "rgba(29, 43, 40, 0.18)",
+            domainColor: "rgba(29, 43, 40, 0.24)"
+          },
+          legend: {
+            labelColor: "#314542",
+            titleColor: "#1d2b28",
+            symbolType: "circle"
+          },
+          title: {
+            font: "Space Grotesk",
+            fontSize: 20,
+            fontWeight: 700,
+            color: "#1d2b28",
+            subtitleFont: "Space Grotesk",
+            subtitleFontSize: 13,
+            subtitleColor: "#516461",
+            anchor: "start",
+            offset: 10
+          }
+        }
+      };
+
+      const donutChart = {
+        width: 760,
+        height: 360,
+        title: {
+          text: "View 1. Donut Chart: Revenue by Sales Rep",
+          subtitle: "Required view: sum of Total by Rep with tooltip"
+        },
+        data: { values: salesOrders },
+        transform: [
+          {
+            aggregate: [{ op: "sum", field: "Total", as: "TotalSales" }],
+            groupby: ["Rep"]
+          },
+          {
+            joinaggregate: [{ op: "sum", field: "TotalSales", as: "GrandTotal" }]
+          },
+          {
+            calculate: "datum.TotalSales / datum.GrandTotal",
+            as: "Share"
+          }
+        ],
+        mark: {
+          type: "arc",
+          innerRadius: 86,
+          outerRadius: 146,
+          cornerRadius: 2,
+          stroke: "#f8f4ec",
+          strokeWidth: 0.8
+        },
+        encoding: {
+          theta: { field: "TotalSales", type: "quantitative" },
+          color: {
+            field: "Rep",
+            type: "nominal",
+            scale: {
+              range: [
+                "#c65d3b",
+                "#2f7d75",
+                "#d4a73f",
+                "#486ea8",
+                "#7a5747",
+                "#84a59d",
+                "#b56576",
+                "#457b9d",
+                "#8f7c3f",
+                "#6c757d",
+                "#d97d54"
+              ]
+            },
+            legend: {
+              title: "Rep",
+              orient: "right",
+              direction: "vertical",
+              columns: 1,
+              labelLimit: 180,
+              symbolSize: 180
+            }
+          },
+          tooltip: [
+            { field: "Rep", type: "nominal", title: "Rep" },
+            {
+              field: "TotalSales",
+              type: "quantitative",
+              title: "Total Sales",
+              format: "$,.2f"
+            },
+            {
+              field: "Share",
+              type: "quantitative",
+              title: "Share",
+              format: ".1%"
+            }
+          ]
+        }
+      };
+
+      const regionBarChart = {
+        width: 420,
+        height: 320,
+        title: {
+          text: "View 4. Interactive Region Ranking",
+          subtitle: "Extra view: click a region to focus attention"
+        },
+        data: { values: salesOrders },
+        params: [
+          {
+            name: "regionSelect",
+            select: { type: "point", fields: ["Region"] }
+          }
+        ],
+        transform: [
+          {
+            aggregate: [{ op: "sum", field: "Total", as: "TotalSales" }],
+            groupby: ["Region"]
+          }
+        ],
+        mark: { type: "bar", cornerRadiusEnd: 10 },
+        encoding: {
+          y: {
+            field: "Region",
+            type: "nominal",
+            sort: "-x",
+            axis: { title: null }
+          },
+          x: {
+            field: "TotalSales",
+            type: "quantitative",
+            title: "Total Sales",
+            axis: { format: "$~s" }
+          },
+          color: {
+            condition: {
+              param: "regionSelect",
+              field: "Region",
+              type: "nominal",
+              scale: {
+                domain: ["Central", "East", "West"],
+                range: ["#2f7d75", "#c65d3b", "#486ea8"]
+              }
+            },
+            value: "#d8ddd8"
+          },
+          opacity: {
+            condition: { param: "regionSelect", value: 1 },
+            value: 0.55
+          },
+          tooltip: [
+            { field: "Region", type: "nominal" },
+            {
+              field: "TotalSales",
+              type: "quantitative",
+              title: "Total Sales",
+              format: "$,.2f"
+            }
+          ]
+        }
+      };
+
+      const streamGraph = {
+        width: 860,
+        height: 280,
+        title: {
+          text: "View 2. Streamgraph: Revenue Trend by Item",
+          subtitle: "Required view: monthly sum of Total by Item"
+        },
+        data: { values: salesOrders },
+        mark: { type: "area", interpolate: "monotone", opacity: 0.9 },
+        encoding: {
+          x: {
+            field: "OrderDate",
+            type: "temporal",
+            timeUnit: "yearmonth",
+            title: "Month"
+          },
+          y: {
+            aggregate: "sum",
+            field: "Total",
+            type: "quantitative",
+            stack: "center",
+            title: "Total Sales"
+          },
+          color: {
+            field: "Item",
+            type: "nominal",
+            scale: {
+              domain: ["Binder", "Desk", "Pen", "Pen Set", "Pencil"],
+              range: ["#c65d3b", "#7a5747", "#2f7d75", "#486ea8", "#d4a73f"]
+            },
+            legend: { title: "Item", orient: "top" }
+          },
+          tooltip: [
+            {
+              field: "OrderDate",
+              type: "temporal",
+              timeUnit: "yearmonth",
+              title: "Month"
+            },
+            { field: "Item", type: "nominal" },
+            {
+              aggregate: "sum",
+              field: "Total",
+              type: "quantitative",
+              title: "Total Sales",
+              format: "$,.2f"
+            }
+          ]
+        }
+      };
+
+      const trellisHistogram = {
+        title: {
+          text: "View 3. Trellis Histogram of Units",
+          subtitle: "Required view: faceted by Item with mean overlay"
+        },
+        data: { values: salesOrders },
+        facet: {
+          field: "Item",
+          type: "nominal",
+          columns: 3,
+          header: {
+            title: null,
+            labelColor: "#1d2b28",
+            labelFont: "Space Grotesk",
+            labelFontWeight: 700
+          }
+        },
+        spec: {
+          width: 180,
+          height: 150,
+          layer: [
+            {
+              mark: {
+                type: "bar",
+                cornerRadiusEnd: 6,
+                color: "#84a59d",
+                opacity: 0.9
+              },
+              encoding: {
+                x: {
+                  bin: { maxbins: 8 },
+                  field: "Units",
+                  type: "quantitative",
+                  title: "Units"
+                },
+                y: {
+                  aggregate: "count",
+                  type: "quantitative",
+                  title: "Count"
+                },
+                tooltip: [
+                  {
+                    bin: { maxbins: 8 },
+                    field: "Units",
+                    type: "quantitative",
+                    title: "Units Bin"
+                  },
+                  { aggregate: "count", type: "quantitative", title: "Orders" }
+                ]
+              }
+            },
+            {
+              transform: [
+                {
+                  aggregate: [{ op: "mean", field: "Units", as: "MeanUnits" }]
+                }
+              ],
+              mark: {
+                type: "rule",
+                color: "#c65d3b",
+                strokeWidth: 3,
+                strokeDash: [8, 5]
+              },
+              encoding: {
+                x: { field: "MeanUnits", type: "quantitative" },
+                tooltip: [
+                  {
+                    field: "MeanUnits",
+                    type: "quantitative",
+                    title: "Mean Units",
+                    format: ".1f"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      };
+
+      const scatterPlot = {
+        width: 860,
+        height: 330,
+        title: {
+          text: "View 5. Interactive Order Scatter",
+          subtitle: "Extra view: brush to isolate order clusters"
+        },
+        data: { values: salesOrders },
+        params: [
+          {
+            name: "orderBrush",
+            select: "interval"
+          }
+        ],
+        mark: { type: "circle", size: 150, stroke: "#f8f4ec", strokeWidth: 1.4 },
+        encoding: {
+          x: { field: "Units", type: "quantitative", title: "Units Ordered" },
+          y: {
+            field: "Total",
+            type: "quantitative",
+            title: "Order Total",
+            axis: { format: "$~s" }
+          },
+          color: {
+            field: "Item",
+            type: "nominal",
+            scale: {
+              domain: ["Binder", "Desk", "Pen", "Pen Set", "Pencil"],
+              range: ["#c65d3b", "#7a5747", "#2f7d75", "#486ea8", "#d4a73f"]
+            }
+          },
+          opacity: {
+            condition: { param: "orderBrush", value: 0.95 },
+            value: 0.18
+          },
+          tooltip: [
+            { field: "OrderDate", type: "temporal", title: "Order Date" },
+            { field: "Region", type: "nominal" },
+            { field: "Rep", type: "nominal" },
+            { field: "Item", type: "nominal" },
+            { field: "Units", type: "quantitative" },
+            { field: "UnitCost", type: "quantitative", title: "Unit Cost", format: "$,.2f" },
+            { field: "Total", type: "quantitative", format: "$,.2f" }
+          ]
+        }
+      };
+
+      const multiviewChart = {
+        title: {
+          text: "View 6. Multiview Composition",
+          subtitle: "A single Vega-Lite composition using vertical concatenation"
+        },
+        spacing: 18,
+        vconcat: [
+          {
+            ...donutChart,
+            width: 760,
+            height: 420,
+            title: null,
+            mark: {
+              ...donutChart.mark,
+              innerRadius: 112,
+              outerRadius: 188
+            }
+          },
+          {
+            ...streamGraph,
+            width: 860,
+            height: 240,
+            title: null
+          },
+          {
+            ...trellisHistogram,
+            title: null
+          },
+          {
+            ...regionBarChart,
+            width: 860,
+            height: 320,
+            title: null
+          },
+          {
+            ...scatterPlot,
+            width: 860,
+            height: 420,
+            title: null
+          }
+        ],
+        resolve: {
+          scale: {
+            color: "independent"
+          }
+        }
+      };
+
+      function showStatus(message) {
+        const status = document.getElementById("status");
+        status.hidden = false;
+        status.textContent = message;
+      }
+
+      async function embedChart(selector, spec) {
+        await vegaEmbed(
+          selector,
+          {
+            ...commonConfig,
+            ...spec
+          },
+          { actions: false, renderer: "svg" }
+        );
+      }
+
+      async function renderDashboard() {
+        if (typeof vegaEmbed !== "function") {
+          showStatus(
+            "Charts could not load because the Vega libraries were not available. If you opened this file offline, connect to the internet and reload so the CDN scripts can load."
+          );
+          return;
+        }
+
+        try {
+          await embedChart("#chart-donut", donutChart);
+          await embedChart("#chart-region", regionBarChart);
+          await embedChart("#chart-stream", streamGraph);
+          await embedChart("#chart-trellis", trellisHistogram);
+          await embedChart("#chart-scatter", scatterPlot);
+          await embedChart("#chart-multiview", multiviewChart);
+        } catch (error) {
+          const message = error && error.message ? error.message : String(error);
+          showStatus("Chart rendering failed: " + message);
+          console.error(error);
+        }
+      }
+
+      renderDashboard();
+    </script>
+  </body>
+</html>
